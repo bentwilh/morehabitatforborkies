@@ -56,8 +56,8 @@ app = Flask(__name__)
 
 def get_choices():
     choices = [
-        RecognitionChoice(label=CONFIRM_CHOICE_LABEL, phrases=["Confirm", "First", "One"], tone=DtmfTone.ONE),
-        RecognitionChoice(label=CANCEL_CHOICE_LABEL, phrases=["Cancel", "Second", "Two"], tone=DtmfTone.TWO)
+        RecognitionChoice(label=CONFIRM_CHOICE_LABEL, phrases=["Confirm", "First", "One", "Yes"], tone=DtmfTone.ONE),
+        RecognitionChoice(label=CANCEL_CHOICE_LABEL, phrases=["Cancel", "Second", "Two", "No"], tone=DtmfTone.TWO)
     ]
     return choices
 
