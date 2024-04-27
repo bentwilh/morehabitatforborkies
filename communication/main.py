@@ -26,7 +26,7 @@ COGNITIVE_SERVICES_ENDPOINT = os.getenv("COGNITIVE_SERVICE_ENDPOINT")
 AZURE_OPENAI_SERVICE_KEY = os.getenv("AZURE_OPENAI_SERVICE_KEY")
 
 # Callback URI to handle events.
-CALLBACK_EVENTS_URI = "https://127.0.0.1/api/callbacks"
+CALLBACK_EVENTS_URI = "https://morehabitatforborkies-production.up.railway.app/api/callbacks"
 
 # Text-to-speech voice and initial announcement text
 SPEECH_TO_TEXT_VOICE = "en-US-NancyNeural"
