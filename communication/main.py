@@ -54,6 +54,11 @@ def outbound_call():
     return Response("Call initiated and message sent.", status=200)
 
 
+@app.route('/api/callbacks', methods=['POST'])
+def callback_events_handler():
+        return Response(status=200)
+
+
 if __name__ == '__main__':
     app.logger.setLevel(INFO)
     app.run(host="0.0.0.0", debug=True, port=os.getenv("PORT", default=1234))
