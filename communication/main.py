@@ -89,7 +89,7 @@ def outbound_call_handler():
                                                                     cognitive_services_endpoint=COGNITIVE_SERVICES_ENDPOINT,
                                                                     source_caller_id_number=source_caller)
     app.logger.info("Created call with connection id: %s", call_connection_properties.call_connection_id)
-    return redirect("/")
+    return Response(status=200)
 
 
 # POST endpoint to handle callback events
@@ -103,11 +103,6 @@ def callback_events_handler():
         call_connection_client = call_automation_client.get_call_connection(call_connection_id)
         target_participant = PhoneNumberIdentifier(TARGET_PHONE_NUMBER)
         if event.type == "Microsoft.Communication.CallConnected":
-            # (Optional) Add a Microsoft Teams user to the call.  Uncomment the below snippet to enable Teams Interop scenario.
-            # call_connection_client.add_participant(target_participant = CallInvite(
-            #     target = MicrosoftTeamsUserIdentifier(user_id=TARGET_TEAMS_USER_ID),
-            #     source_display_name = "Jack (Contoso Tech Support)"))
-
             app.logger.info("Starting recognize")
             get_media_recognize_choice_options(
                 call_connection_client=call_connection_client,
