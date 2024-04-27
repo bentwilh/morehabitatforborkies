@@ -32,7 +32,7 @@ CALLBACK_EVENTS_URI = "https://morehabitatforborkies-production.up.railway.app/a
 
 # Text-to-speech voice and initial announcement text
 SPEECH_TO_TEXT_VOICE = "en-US-NancyNeural"
-MAIN_MENU = "Hello, this is notification from wood watchers. How much wood would a wood watcher watch? Goodbye."
+MAIN_MENU = "Hello, this is notification from wood watchers. We have detected potential environmental damage in your area of responsiblity. Do you want to receive a summary notification via SMS?"
 CONFIRMED_TEXT = "Thank you, a summary SMS has been sent."
 CANCEL_TEXT = "Alright, I won't send an SMS then. Thank you."
 CUSTOMER_QUERY_TIMEOUT = "I’m sorry I didn’t receive a response, please try again."
@@ -122,13 +122,7 @@ def callback_events_handler():
                                 label_detected, phraseDetected, event.data.get('operationContext'))
                 if label_detected == CONFIRM_CHOICE_LABEL:
                     text_to_play = CONFIRMED_TEXT
-                    # TODO: Fix map details
-                    sms_client = SmsClient.from_connection_string(ACS_CONNECTION_STRING)
-                    sms_responses = sms_client.send(
-                        from_=ACS_PHONE_NUMBER,
-                        to=[TARGET_PHONE_NUMBER],
-                        message="Map Details will go here")
-
+                    send_sms()
                 else:
                     text_to_play = CANCEL_TEXT
                 handle_play(call_connection_client=call_connection_client, text_to_play=text_to_play)
@@ -137,6 +131,7 @@ def callback_events_handler():
             failedContext = event.data['operationContext']
             if (failedContext and failedContext == RETRY_CONTEXT):
                 handle_play(call_connection_client=call_connection_client, text_to_play=NO_RESPONSE)
+                send_sms()
             else:
                 resultInformation = event.data['resultInformation']
                 app.logger.info("Encountered error during recognize, message=%s, code=%s, subCode=%s",
@@ -159,6 +154,15 @@ def callback_events_handler():
             call_connection_client.hang_up(is_for_everyone=True)
 
         return Response(status=200)
+
+
+def send_sms():
+    print("sending SMS")
+    sms_client = SmsClient.from_connection_string(ACS_CONNECTION_STRING)
+    sms_responses = sms_client.send(
+        from_=ACS_PHONE_NUMBER,
+        to=[TARGET_PHONE_NUMBER],
+        message="Map Details will go here")
 
 
 if __name__ == '__main__':
