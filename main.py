@@ -1,13 +1,17 @@
 import os
-
+from pathlib import Path
 from flask import Flask, request, send_file, jsonify
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 import json
 from PIL import Image
 import numpy as np
-
+import math
 from predictor import ImagePredictor
+from cacheAccess import CacheAccess
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -23,15 +27,35 @@ def get_token(oauth):
         token_url='https://services.sentinel-hub.com/auth/realms/main/protocol/openid-connect/token',
         client_secret=os.environ.get("CLIENT_SECRET"), include_client_id=True)
 
+#Intermediate Step
+def lat_lon_to_tile_index(lat, lon, tile_size_km=10):
+        km_per_degree_lat = 111  # Approximate conversion factor for latitude to km
+        min_latitude = -90       # Minimum latitude
+        min_longitude = -180     # Minimum longitude
+        
+        # Calculate the degree conversion for longitude at the given latitude
+        km_per_degree_lon = km_per_degree_lat * math.cos(math.radians(lat))
+        
+        # Calculate tile indices
+        lat_index = int((lat - min_latitude) * km_per_degree_lat / tile_size_km)
+        lon_index = int((lon - min_longitude) * km_per_degree_lon / tile_size_km)
+        
+        return lat_index, lon_index
 
 @app.route('/get-image', methods=['POST'])
 def get_image():
+    cache = CacheAccess()
     data = request.get_json()
     if not data or 'lat' not in data or 'lon' not in data:
         return jsonify({"error": "Latitude and longitude must be provided"}), 400
-
     lat = float(data['lat'])
     lon = float(data['lon'])
+    lat_index, long_index = lat_lon_to_tile_index(lat, lon)
+
+    cached_path = cache.get(lat_index, long_index, 2022, 1)
+    if cached_path:
+        return send_file(cached_path, mimetype='image/jpeg')
+
     size = 0.01
 
     bbox = [lon - size, lat - size, lon + size, lat + size]
@@ -110,13 +134,15 @@ def get_image():
         # Composite the images
         overlayed_image = Image.alpha_composite(image, gradient_mask_image)
         overlayed_image = overlayed_image.convert('RGB')
-        jpeg_image_path = 'overlayed_image.jpg'
+        index_dir = Path("./cache") / Path(f"{lat_index}_{long_index}")
+        print(index_dir)
+        index_dir.mkdir(parents=True, exist_ok=True)
+        jpeg_image_path = index_dir / Path('overlayed_image.jpg')
         overlayed_image.save(jpeg_image_path, 'JPEG', quality=90)  # Save as JPEG with high quality
 
         return send_file(jpeg_image_path, mimetype='image/jpeg')
     else:
         return jsonify({"error": "Failed to fetch image: " + str(response.status_code)}), 500
-
 
 @app.route("/")
 def hello_world():
