@@ -38,7 +38,7 @@ def outbound_call():
     call_connection = call_automation_client.create_call(
         source_caller_id_number=source,
         target_participant=target,
-        callback_uri=CALLBACK_EVENTS_URI
+        callback_url=CALLBACK_EVENTS_URI
     )
 
     # Retrieve the call connection client
