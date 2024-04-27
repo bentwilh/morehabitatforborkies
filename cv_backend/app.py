@@ -89,7 +89,7 @@ def generate_file_paths(lat_index, long_index, start_year, start_month, end_year
     file_paths = []
     
     while current_date <= end_date:
-        file_name = f"cache/{lat_index}_{long_index}/{current_date.strftime('%Y_%m')}.jpg"
+        file_name = f"cv_backend/cache/{lat_index}_{long_index}/{current_date.strftime('%Y_%m')}.jpg"
         file_paths.append(file_name)
         
         current_date += relativedelta(months=1)
@@ -124,6 +124,9 @@ def get_image():
     lat_index, long_index = lat_lon_to_tile_index(lat, lon)
     desired_paths = generate_file_paths(lat_index, long_index, start_year, start_month, end_year, end_month)
     cached_paths = cache.get(lat_index, long_index, start_year, start_month, end_year, end_month)
+    print("Reaches Cache Check")
+    print(desired_paths)
+    print(cached_paths)
     if cached_paths and all(des in cached_paths for des in desired_paths):
         return generate_json_from_complete_paths(cached_paths)
     
@@ -133,8 +136,7 @@ def get_image():
 
     bbox = [lon - size, lat - size, lon + size, lat + size]
     for pathToGen in toGenerate:
-
-        yearToGen, monthToGen = pathToGen.split('/')[2].split('_')
+        yearToGen, monthToGen = pathToGen.split('/')[3].split('_')
         monthToGen = monthToGen.split(".")[0]
         date_str_start = f"{yearToGen}-{int(monthToGen):02d}-01T00:00:00Z"
         date_str_end = f"{yearToGen}-{int(monthToGen):02d}-28T00:00:00Z"
@@ -238,16 +240,17 @@ def get_image():
 
             # Composite the images
             overlayed_image = Image.alpha_composite(image, gradient_mask_image)
-            image = image.convert('RGB')#REMOVE
-            image.save(f"{yearToGen}_{monthToGen}.jpg", 'JPEG', quality=90)#REMOVE
 
             overlayed_image = overlayed_image.convert('RGB')
-            index_dir = Path(f"./cache/{lat_index}_{long_index}")
+            print("Reaches next path update")
+            index_dir = Path(f"cv_backend/cache/{lat_index}_{long_index}")
             index_dir.mkdir(parents=True, exist_ok=True)
             jpeg_image_path = index_dir / Path(f'{yearToGen}_{monthToGen}.jpg')
             overlayed_image.save(jpeg_image_path, 'JPEG', quality=90)  
+            print("Image saved")
         else:
             return jsonify({"error": "Failed to fetch image: " + str(response.status_code)}), 500
+    cached_paths_refresh = cache.get(lat_index, long_index, start_year, start_month, end_year, end_month)
     return generate_json_from_complete_paths(cached_paths_refresh)
 
 

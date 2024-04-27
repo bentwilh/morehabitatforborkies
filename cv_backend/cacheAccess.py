@@ -7,7 +7,7 @@ from datetime import datetime
 
 
 class CacheAccess:
-    def __init__(self, cache_dir='cache'):
+    def __init__(self, cache_dir='cv_backend/cache'):
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)  # Ensure cache directory exists
 
