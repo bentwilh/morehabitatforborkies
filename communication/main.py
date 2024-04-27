@@ -14,6 +14,8 @@ from azure.communication.callautomation import (
     DtmfTone,
     TextSource)
 from azure.core.messaging import CloudEvent
+from azure.communication.sms import SmsClient
+
 
 # Flask application setup
 app = Flask(__name__)
@@ -84,8 +86,8 @@ def handle_play(call_connection_client: CallConnectionClient, text_to_play: str)
 def outbound_call_handler():
     target_participant = PhoneNumberIdentifier(TARGET_PHONE_NUMBER)
     source_caller = PhoneNumberIdentifier(ACS_PHONE_NUMBER)
-    call_connection_properties = call_automation_client.create_call(target_participant,
-                                                                    CALLBACK_EVENTS_URI,
+    call_connection_properties = call_automation_client.create_call(target_participant=target_participant,
+                                                                    callback_url=CALLBACK_EVENTS_URI,
                                                                     cognitive_services_endpoint=COGNITIVE_SERVICES_ENDPOINT,
                                                                     source_caller_id_number=source_caller)
     app.logger.info("Created call with connection id: %s", call_connection_properties.call_connection_id)
@@ -120,6 +122,13 @@ def callback_events_handler():
                                 label_detected, phraseDetected, event.data.get('operationContext'))
                 if label_detected == CONFIRM_CHOICE_LABEL:
                     text_to_play = CONFIRMED_TEXT
+                    # TODO: Fix map details
+                    sms_client = SmsClient.from_connection_string(ACS_CONNECTION_STRING)
+                    sms_responses = sms_client.send(
+                        from_=ACS_PHONE_NUMBER,
+                        to=[TARGET_PHONE_NUMBER],
+                        message="Map Details will go here")
+
                 else:
                     text_to_play = CANCEL_TEXT
                 handle_play(call_connection_client=call_connection_client, text_to_play=text_to_play)
