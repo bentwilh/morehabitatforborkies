@@ -14,7 +14,7 @@ ACS_PHONE_NUMBER = os.getenv("ACS_PHONE_NUMBER")
 TARGET_PHONE_NUMBER = "+4915204446662"
 
 # Callback URI to handle events.
-CALLBACK_EVENTS_URI = "https://127.0.0.1/api/callbacks"  # TODO
+CALLBACK_EVENTS_URI = "https://morehabitatforborkies-production.up.railway.app/api/callbacks"
 
 # Text-to-speech voice and initial announcement text
 SPEECH_TO_TEXT_VOICE = "en-US-NancyNeural"
