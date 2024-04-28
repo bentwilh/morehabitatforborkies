@@ -3,12 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_fadein/flutter_fadein.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:tumai/IncidentEntry.dart';
 import 'package:tumai/forest_dashboard.dart';
+import 'package:tumai/global.dart';
 import 'package:tumai/incident_dashboard.dart';
+import 'package:tumai/repository.dart';
 
 Marker? currentMarker;
 
-void main() {
+void main() async {
+  await ForestDataRepository().fetchIncidents();
+  Timer.periodic(const Duration(milliseconds: 5000), (timer) {
+    ForestDataRepository().fetchCalls();
+  });
   runApp(const MyApp());
 }
 
@@ -44,7 +51,7 @@ class MapSampleState extends State<MapSample> {
   bool showPopup = false;
 
   static const CameraPosition initialPosition = CameraPosition(
-    target: LatLng(1.788250, -61.135222),
+    target: LatLng(-4.186084, -56.063341,),
     zoom: 14.4746,
   );
 
@@ -56,7 +63,7 @@ class MapSampleState extends State<MapSample> {
       onMapCreated: (GoogleMapController controller) {
         _controller.complete(controller);
       },
-      markers: Set.from(currentMarker == null ? [] : [currentMarker]),
+      markers: Set.from(currentMarker == null ? incidentEntries.value.map((e) => Marker(markerId: MarkerId(e.incidentId ?? "fgeuyfgkseuygfjegsf"), position: LatLng(double.parse(e.location.split(', ')[0]), double.parse(e.location.split(', ')[1])))) : [currentMarker, ...incidentEntries.value.map((e) => Marker(markerId: MarkerId(e.incidentId ?? "fsjfkjnfskjnf"), position: LatLng(double.parse(e.location.split(', ')[0]), double.parse(e.location.split(', ')[1]))))]),
       scrollGesturesEnabled: !showPopup,
       onTap: (pointer) async {
         if (showPopup) {
@@ -66,6 +73,7 @@ class MapSampleState extends State<MapSample> {
           currentMarker =
               Marker(markerId: const MarkerId("0"), position: pointer, flat: false);
         });
+        ForestDataRepository().addIncidentEntry(IncidentEntry(location: '${pointer.latitude}, ${pointer.longitude}', timestamp: DateTime.now()));
         await (await _controller.future).animateCamera(
             CameraUpdate.newCameraPosition(
                 CameraPosition(target: pointer, zoom: 18)));

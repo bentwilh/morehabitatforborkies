@@ -8,6 +8,7 @@ import 'package:gap/gap.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:lottie/lottie.dart' as l;
 import 'package:tumai/global.dart';
+import 'package:tumai/main.dart';
 import 'package:tumai/repository.dart';
 
 import 'incident.dart';
@@ -45,9 +46,9 @@ class _IncidentDashboardState extends State<IncidentDashboard> {
         ForestRequestDto(
             lat: widget.currentMarker.position.latitude,
             lon: widget.currentMarker.position.longitude,
-            startYear: 2023,
-            startMonth: 8,
-            endYear: 2023,
+            startYear: 2019,
+            startMonth: 1,
+            endYear: 2020,
             endMonth: 12)
     );
     print("Now ending the request");
@@ -72,7 +73,7 @@ class _IncidentDashboardState extends State<IncidentDashboard> {
         children: [
           Flexible(flex: 1, child: CloseButtonRow(widget.callback)),
           Flexible(flex: 6, child: ImageSection(otherImages: otherImages!, imageNow: imageNow!,)), // Image
-          Flexible(flex: 4, child: IncidentSection()), // History
+          Flexible(flex: 4, child: IncidentSection(widget.currentMarker)), // History
         ],
       );} else {
       child = Container();
@@ -181,11 +182,16 @@ class ImageWidget extends StatelessWidget {
 }
 
 class IncidentSection extends StatelessWidget {
+
+  final Marker currentMarker;
+
+  IncidentSection(this.currentMarker);
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        IncidentTitleRow(),
+        IncidentTitleRow(currentMarker),
         const StatisticsRow(values: {'-10%':'Wach', '69420':'Merge Conflicts', '100%': 'Spaß'}),
         const Expanded(child: IncidentList())
       ],
@@ -194,13 +200,20 @@ class IncidentSection extends StatelessWidget {
 }
 
 class IncidentTitleRow extends StatelessWidget {
+  final Marker currentMarker;
+
+  IncidentTitleRow(this.currentMarker);
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [const IncidentTitle(title: '1.123123, 32.123432'),
-        IncidentActionButtonRow()],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [IncidentTitle(title: '${currentMarker.position.latitude.toStringAsFixed(3)}, ${currentMarker.position.longitude.toStringAsFixed(3)}'),
+          IncidentActionButtonRow()],
+      ),
     );
   }
 
