@@ -17,7 +17,7 @@ from azure.communication.callautomation import (
     TextSource)
 from azure.core.messaging import CloudEvent
 from azure.communication.sms import SmsClient
-
+import openai
 
 # Flask application setup
 app = Flask(__name__)
@@ -30,10 +30,12 @@ COGNITIVE_SERVICES_ENDPOINT = os.getenv("COGNITIVE_SERVICES_ENDPOINT")
 AZURE_OPENAI_SERVICE_KEY = os.getenv("AZURE_OPENAI_SERVICES_KEY")
 CALLBACK_EVENTS_URI = "https://morehabitatforborkies-production.up.railway.app/api/callbacks"
 SPEECH_TO_TEXT_VOICE = "en-US-NancyNeural"
-OUTGOING_MESSAGE = "Hello, this is notification from wood watchers." \
+OUTGOING_MESSAGE = "Hello, this is a notification from wood watchers." \
             "We have detected potential environmental damage in your area of responsiblity." \
-            "We kindly ask you to call back this number to give us an update once you have investigated the situation."
+            "We kindly ask you to call back this number to give us an update once you have investigated the situation. Thank you."
 call_automation_client = CallAutomationClient.from_connection_string(ACS_CONNECTION_STRING)
+AZURE_OPENAI_DEPLOYMENT_MODEL = "gpt-3.5-turbo"
+openai.api_key = AZURE_OPENAI_SERVICE_KEY
 
 
 @app.route('/')
@@ -61,6 +63,22 @@ def get_media_recognize_choice_options(call_connection_client: CallConnectionCli
 def handle_play(call_connection_client: CallConnectionClient, text_to_play: str):
     play_source = TextSource(text=text_to_play, voice_name=SPEECH_TO_TEXT_VOICE)
     call_connection_client.play_media_to_all(play_source)
+
+
+def handle_recognize(replyText, callerId, call_connection_id, context=""):
+    play_source = TextSource(text=replyText, voice_name=SPEECH_TO_TEXT_VOICE)
+    recognize_result = call_automation_client.get_call_connection(call_connection_id).start_recognizing_media(
+        input_type=RecognizeInputType.SPEECH,
+        target_participant=PhoneNumberIdentifier(callerId),
+        end_silence_timeout=5,
+        play_prompt=play_source,
+        operation_context=context,
+    )
+    app.logger.info("handle_recognize : data=%s", recognize_result)
+
+
+def handle_hangup(call_connection_id):
+    call_automation_client.get_call_connection(call_connection_id).hang_up(is_for_everyone=True)
 
 
 # GET endpoint to place phone call
@@ -128,9 +146,61 @@ def callback_events_handler():
 
         elif event.type in ["Microsoft.Communication.PlayCompleted", "Microsoft.Communication.PlayFailed"]:
             app.logger.info("Terminating call")
-            call_connection_client.hang_up(is_for_everyone=True)
+            handle_hangup(call_connection_id)
 
         return Response(status=200)
+
+
+@app.route("/api/callbacks/<contextId>", methods=["POST"])
+def handle_callback(contextId):
+    print("Getting call-in callback")
+    try:
+        global caller_id, call_connection_id
+        app.logger.info("Request Json: %s", request.json)
+        for event_dict in request.json:
+            event = CloudEvent.from_dict(event_dict)
+            call_connection_id = event.data['callConnectionId']
+
+            app.logger.info("%s event received for call connection id: %s", event.type, call_connection_id)
+            caller_id = request.args.get("callerId").strip()
+            if "+" not in caller_id:
+                caller_id = "+" + caller_id.strip()
+
+            app.logger.info("call connected : data=%s", event.data)
+            if event.type == "Microsoft.Communication.CallConnected":
+                handle_recognize("Hello! How can I assist you?", caller_id, call_connection_id,
+                                 context="GetFreeFormText")
+
+            elif event.type == "Microsoft.Communication.RecognizeCompleted":
+                if event.data['recognitionType'] == "speech":
+                    speech_text = event.data['speechResult']['speech'];
+                    app.logger.info("Recognition completed, speech_text =%s", speech_text)
+                    if speech_text is not None and len(speech_text) > 0:
+                        static_response = "Thank you for your input. We are processing your request."
+                        # if len(static_response) > 390:
+                        #     static_response = static_response[:390]
+                        handle_recognize(static_response, caller_id, call_connection_id, context="StaticResponse")
+
+            elif event.type == "Microsoft.Communication.RecognizeFailed":
+                resultInformation = event.data['resultInformation']
+                reasonCode = resultInformation['subCode']
+                context = event.data['operationContext']
+                global max_retry
+                if reasonCode == 8510 and 0 < max_retry:
+                    handle_recognize("Please repeat that.", caller_id, call_connection_id)
+                    max_retry -= 1
+                else:
+                    handle_play(call_connection_id, caller_id, "Goodbye!", "EndCall")
+
+            elif event.type == "Microsoft.Communication.PlayCompleted":
+                context = event.data['operationContext']
+                if context.lower() == "endcall".lower():
+                    handle_hangup(call_connection_id)
+
+        return Response(status=200)
+    except Exception as ex:
+        app.logger.error("Error in event handling: %s", ex)
+
 
 
 @app.route("/api/incomingCall", methods=['POST'])
