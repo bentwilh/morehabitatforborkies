@@ -131,6 +131,7 @@ class ImageSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         ImageRotationWidget(images: otherImages),
         ImageWidget(base64encodedImage: imageNow),
@@ -164,7 +165,7 @@ class _ImageRotationWidgetState extends State<ImageRotationWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return ImageWidget(base64encodedImage: widget.images[rotator]);
+    return ImageWidget(base64encodedImage: widget.images[rotator % (widget.images.length-1)]);
   }
 }
 
@@ -287,8 +288,9 @@ class IncidentList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder(valueListenable: incidents,
     builder: (BuildContext context, List<Incident> value, Widget? child) {
+      print("Building...");
       return ListView.separated(itemBuilder: (context, index) {
-        return IncidentCard(title: value[index].title, timestamp: value[index].timestamp.toIso8601String(), report: value[index].content);
+        return IncidentCard(title: value[index].title, timestamp: value[index].timestamp.toIso8601String().split('T')[0], report: value[index].content);
       }, separatorBuilder: (context, index) => Container(height: 0), itemCount: value.length);
     });
   }
@@ -298,9 +300,8 @@ class ResolveIncidentButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextButton(
-        onPressed: () {
-          // TODO: Add add person functionality
-          print("Resolve incident pressed");
+        onPressed: () async {
+          await ForestDataRepository().callNumber();
         },
         child: const Row(
           children: [
@@ -319,7 +320,7 @@ class AddPersonButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
         onPressed: () async {
-          await ForestDataRepository().callNumber();
+
         },
         child: const Row(
           children: [
@@ -348,34 +349,39 @@ class IncidentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 120,
-      width: 500,
+      width: 350,
       child: Material(
         child: Card(
-          margin: const EdgeInsets.all(12),
           color: Colors.white,
           shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(16))),
           elevation: 6,
           child: Stack(
             children: [
-              Align(
-                alignment: Alignment.topLeft,
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.black87),
+              Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black87),
+                  ),
                 ),
               ),
-              Align(
-                alignment: Alignment.topRight,
-                child: Text(
-                  timestamp,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w200,
-                      color: Colors.black54),
+              Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Text(
+                    timestamp,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w200,
+                        color: Colors.black54),
+                  ),
                 ),
               ),
               Align(

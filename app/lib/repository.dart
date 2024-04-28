@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:tumai/global.dart';
+import 'package:tumai/incident.dart';
 
 class ForestChangeData {
   final DateTime captureDate;
@@ -30,7 +32,11 @@ class ForestDataRepository {
   ForestDataRepository({Dio? dio}) : _dio = dio ?? Dio(BaseOptions(connectTimeout: Duration(seconds: 130),sendTimeout: Duration(seconds: 130),receiveTimeout: Duration(seconds: 130)));
 
   Future<bool> callNumber() async {
+    incidents.value = [...incidents.value]..add(Incident(title: "Original Report", timestamp: DateTime.now(), content: "Incident reported to local authority"));
     return await _dio.get('https://morehabitatforborkies-production.up.railway.app/outboundCall').then((value) {
+      print('Now updating incidents');
+      incidents.value = [...incidents.value]..add(Incident(title: "Original Report", timestamp: DateTime.now(), content: "Incident reported to local authority"));
+      print('Updated incidents');
       if (200 == value.statusCode) {
         return true;
       }
