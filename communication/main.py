@@ -56,10 +56,9 @@ incidents = [
 def summarize_text(text):
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": "You are a helpful office assistant looking over call transcripts"
-                                                "from calls about deforestation or tree damage (or anything tree/forest related)."
-                                                "Take a look at the following transcript. Summarize it to the best of your ability."
-                                                "If it is not related to your job/the relevant fields in any way, just note that."},
+        messages=[{"role": "system", "content": "You are a helpful office assistant looking over call transcripts. "
+                                                "Take a look at the following transcript. "
+                                                "Summarize it to the best of your ability."},
                   {"role": "user", "content": text}]
     )
     return response['choices'][0]['message']['content']
