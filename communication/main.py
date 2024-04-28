@@ -39,6 +39,18 @@ AZURE_OPENAI_DEPLOYMENT_MODEL = "gpt-3.5-turbo"
 openai.api_key = AZURE_OPENAI_SERVICE_KEY
 
 call_records = []
+incidents = [
+    {
+        "incident_id": "a74b1de3-5d48-4376-93f6-8eb4185cf9c6",
+        "timestamp": "2024-04-28T12:34:56",
+        "location": "34.0522, -118.2437"
+    },
+    {
+        "incident_id": "d8b39ccd-b9d7-4dbd-a4a1-6173e9019045",
+        "timestamp": "2024-04-28T15:21:30",
+        "location": "40.7128, -74.0060"
+    }
+]
 
 
 def get_media_recognize_choice_options(call_connection_client: CallConnectionClient, text_to_play: str,
@@ -214,7 +226,9 @@ def incoming_call_handler():
 
 @app.route('/api/calls', methods=['GET'])
 def get_calls():
-    return jsonify(call_records)
+    if not call_records:  # Check if the list is empty
+        return jsonify({})  # Return an empty JSON object
+    return jsonify(call_records)  # Return the list of call records as JSON
 
 
 @app.route('/api/calls/<record_id>', methods=['GET'])
@@ -253,6 +267,54 @@ def update_call(record_id):
 def delete_call(record_id):
     global call_records
     call_records = [record for record in call_records if record['record_id'] != record_id]
+    return Response(status=204)
+
+
+@app.route('/api/incidents', methods=['POST'])
+def create_incident():
+    data = request.json
+    incident_id = str(uuid.uuid4())
+    new_incident = {
+        'incident_id': incident_id,
+        'timestamp': datetime.now(),
+        'location': data.get('location', 'Unknown')
+    }
+    incidents.append(new_incident)
+    return jsonify(new_incident), 201
+
+
+# Endpoint to get all incidents
+@app.route('/api/incidents', methods=['GET'])
+def get_incidents():
+    if not incidents:
+        return jsonify({})  # Return an empty JSON object
+    return jsonify(incidents)  # Return the list of call records as JSON
+
+
+# Endpoint to get a single incident by ID
+@app.route('/api/incidents/<incident_id>', methods=['GET'])
+def get_incident(incident_id):
+    incident = next((item for item in incidents if item['incident_id'] == incident_id), None)
+    return jsonify(incident) if incident else ('', 404)
+
+
+# Endpoint to update an incident
+@app.route('/api/incidents/<incident_id>', methods=['PUT'])
+def update_incident(incident_id):
+    incident = next((item for item in incidents if item['incident_id'] == incident_id), None)
+    if incident:
+        data = request.json
+        incident['location'] = data.get('location', incident['location'])
+        return jsonify(incident)
+    else:
+        return ('', 404)
+
+
+# Endpoint to delete an incident
+@app.route('/api/incidents/<incident_id>', methods=['DELETE'])
+def delete_incident(incident_id):
+    global incidents
+    incidents = [incident for incident in incidents if incident['incident_id'] != incident_id]
     return Response(status=204)
 
 
