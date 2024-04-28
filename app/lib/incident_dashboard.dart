@@ -72,8 +72,8 @@ class _IncidentDashboardState extends State<IncidentDashboard> {
       child = Column(
         children: [
           Flexible(flex: 1, child: CloseButtonRow(widget.callback)),
-          Flexible(flex: 6, child: ImageSection(otherImages: otherImages!, imageNow: imageNow!,)), // Image
-          Flexible(flex: 4, child: IncidentSection(widget.currentMarker)), // History
+          Flexible(flex: 6, child: ImageSection(otherImages: otherImages!, imageNow: imageNow!)), // Image
+          Flexible(flex: 4, child: IncidentSection(widget.currentMarker, widget.callback)), // History
         ],
       );} else {
       child = Container();
@@ -176,7 +176,7 @@ class ImageWidget extends StatelessWidget {
   const ImageWidget({super.key, required this.base64encodedImage});
   @override
   Widget build(BuildContext context) {
-    return Image.memory(base64Decode(base64encodedImage));
+    return SizedBox(height: 512, width: 512, child: Image.memory(base64Decode(base64encodedImage)));
   }
 
 }
@@ -184,14 +184,15 @@ class ImageWidget extends StatelessWidget {
 class IncidentSection extends StatelessWidget {
 
   final Marker currentMarker;
+  final CloseCallback callback;
 
-  IncidentSection(this.currentMarker);
+  IncidentSection(this.currentMarker, this.callback);
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        IncidentTitleRow(currentMarker),
+        IncidentTitleRow(currentMarker, callback),
         const StatisticsRow(values: {'-10%':'Wach', '69420':'Merge Conflicts', '100%': 'Spaß'}),
         const Expanded(child: IncidentList())
       ],
@@ -201,8 +202,9 @@ class IncidentSection extends StatelessWidget {
 
 class IncidentTitleRow extends StatelessWidget {
   final Marker currentMarker;
+  final CloseCallback callback;
 
-  IncidentTitleRow(this.currentMarker);
+  IncidentTitleRow(this.currentMarker, this.callback);
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +214,7 @@ class IncidentTitleRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [IncidentTitle(title: '${currentMarker.position.latitude.toStringAsFixed(3)}, ${currentMarker.position.longitude.toStringAsFixed(3)}'),
-          IncidentActionButtonRow()],
+          IncidentActionButtonRow(callback: callback,)],
       ),
     );
   }
@@ -285,11 +287,16 @@ class StatisticsText extends StatelessWidget {
 }
 
 class IncidentActionButtonRow extends StatelessWidget {
+
+  final CloseCallback callback;
+
+  const IncidentActionButtonRow({super.key, required this.callback});
+
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
-      children: [ResolveIncidentButton(), const Gap(12), AddPersonButton()],
+      children: [ResolveIncidentButton(callback: callback,), const Gap(12), AddPersonButton()],
     );
   }
 }
@@ -310,11 +317,17 @@ class IncidentList extends StatelessWidget {
 }
 
 class ResolveIncidentButton extends StatelessWidget {
+
+  final CloseCallback callback;
+
+  const ResolveIncidentButton({super.key, required this.callback});
+
   @override
   Widget build(BuildContext context) {
     return TextButton(
         onPressed: () async {
-          await ForestDataRepository().callNumber();
+          await ForestDataRepository().removeIncidentEntry();
+          callback.call();
         },
         child: const Row(
           children: [
@@ -329,17 +342,20 @@ class ResolveIncidentButton extends StatelessWidget {
 }
 
 class AddPersonButton extends StatelessWidget {
+
+  const AddPersonButton({super.key});
+
   @override
   Widget build(BuildContext context) {
     return TextButton(
         onPressed: () async {
-
+          await ForestDataRepository().callNumber();
         },
         child: const Row(
           children: [
-            Icon(Icons.person_add_alt),
+            Icon(Icons.wifi_calling_3_outlined),
             Gap(4),
-            Text('Add Person', style: TextStyle(
+            Text('Notify abt. issue', style: TextStyle(
                 fontSize: 32
             )),
           ],

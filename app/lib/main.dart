@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_fadein/flutter_fadein.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:tumai/IncidentEntry.dart';
-import 'package:tumai/forest_dashboard.dart';
 import 'package:tumai/global.dart';
 import 'package:tumai/incident_dashboard.dart';
 import 'package:tumai/repository.dart';

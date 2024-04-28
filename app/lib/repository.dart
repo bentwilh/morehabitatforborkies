@@ -70,7 +70,7 @@ class ForestDataRepository {
 
 
   Future<void> removeIncidentEntry() async {
-    
+    incidentEntries.value.removeLast();
   }
 
   Future<void> addIncidentEntry(IncidentEntry entry) async {
@@ -79,7 +79,7 @@ class ForestDataRepository {
   }
 
   Future<void> fetchCalls() async {
-    if (incidents.value.length == 2) {
+    if (weAreDone) {
       return;
     }
     var data = await _dio.get('https://morehabitatforborkies-production.up.railway.app/api/calls');
@@ -91,7 +91,8 @@ class ForestDataRepository {
         'speech_text': record_data.get('speech_text', '')
     }
      */
-    incidents.value = [Incident(timestamp: DateTime.now(), content: (data as Map<String, dynamic>)['speech_text'], title: 'Callback'), ...incidents.value];
+    incidents.value = [Incident(timestamp: DateTime.now(), content: (data.data as List<dynamic>).first['speech_text'], title: 'Callback'), ...incidents.value];
+    weAreDone = true;
   }
 
   Future<Map<String, String>> getForestChangeData(

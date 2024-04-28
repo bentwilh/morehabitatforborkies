@@ -4,3 +4,4 @@ import 'package:tumai/incident.dart';
 
 ValueNotifier<List<Incident>> incidents = ValueNotifier(<Incident>[]);
 ValueNotifier<List<IncidentEntry>> incidentEntries = ValueNotifier(<IncidentEntry>[]);
+bool weAreDone = false;
