@@ -153,7 +153,7 @@ def callback_events_handler():
 
 @app.route("/api/callbacks/<contextId>", methods=["POST"])
 def handle_callback(contextId):
-    print("Getting call-in callback")
+    app.logger.info("RECEIVED CALL-IN CALLBACK")
     try:
         global caller_id, call_connection_id
         app.logger.info("Request Json: %s", request.json)
@@ -202,9 +202,9 @@ def handle_callback(contextId):
         app.logger.error("Error in event handling: %s", ex)
 
 
-
 @app.route("/api/incomingCall", methods=['POST'])
 def incoming_call_handler():
+    app.logger.info("RECEIVED CALL")
     for event_dict in request.json:
         event = EventGridEvent.from_dict(event_dict)
         app.logger.info("incoming event data --> %s", event.data)
