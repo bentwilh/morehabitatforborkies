@@ -19,9 +19,12 @@ from azure.communication.callautomation import (
 from azure.core.messaging import CloudEvent
 from azure.communication.sms import SmsClient
 import openai
+from flask_cors import CORS
+
 
 # Flask application setup
 app = Flask(__name__)
+CORS(app)
 
 # Azure Services
 ACS_CONNECTION_STRING = os.getenv("ACS_CONNECTION_STRING")
