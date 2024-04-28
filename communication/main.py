@@ -1,9 +1,10 @@
 import os
 import uuid
+from datetime import datetime
 from urllib.parse import urlencode
 
 from azure.eventgrid import EventGridEvent, SystemEventNames
-from flask import Flask, Response, request, json, send_file, render_template, redirect
+from flask import Flask, Response, request, json, send_file, render_template, redirect, jsonify
 from logging import INFO
 from azure.communication.callautomation import (
     CallAutomationClient,
@@ -36,6 +37,8 @@ OUTGOING_MESSAGE = "Hello, this is a notification from wood watchers." \
 call_automation_client = CallAutomationClient.from_connection_string(ACS_CONNECTION_STRING)
 AZURE_OPENAI_DEPLOYMENT_MODEL = "gpt-3.5-turbo"
 openai.api_key = AZURE_OPENAI_SERVICE_KEY
+
+call_records = []
 
 
 @app.route('/')
@@ -176,10 +179,18 @@ def handle_callback(contextId):
                     speech_text = event.data['speechResult']['speech'];
                     app.logger.info("Recognition completed, speech_text =%s", speech_text)
                     if speech_text is not None and len(speech_text) > 0:
-                        static_response = "Thank you for your input. One of our representatives will be in touch if further context or action should be required."
-                        # if len(static_response) > 390:
-                        #     static_response = static_response[:390]
+                        static_response = "Thank you for your input. One of our representatives will be in touch if further context or action should be required. " \
+                                          "If you are are not happy with the statement you gave or want to provide more context, just continue talking. Otherwise, feel free to hang up now. "
                         handle_recognize(static_response, caller_id, call_connection_id, context="StaticResponse")
+                        record_id = str(uuid.uuid4())
+                        new_record = {
+                            'record_id': record_id,
+                            'timestamp': datetime.now(),
+                            'caller_id': caller_id,
+                            'speech_text': speech_text
+                        }
+                        call_records.append(new_record)
+                        app.logger.info("Call record added: %s", new_record)
 
             elif event.type == "Microsoft.Communication.RecognizeFailed":
                 resultInformation = event.data['resultInformation']
@@ -235,6 +246,45 @@ def incoming_call_handler():
             app.logger.info("Answered call for connection id: %s",
                             answer_call_result.call_connection_id)
             return Response(status=200)
+
+    @app.route('/api/calls', methods=['GET'])
+    def get_calls():
+        return jsonify(call_records)
+
+    @app.route('/api/calls/<record_id>', methods=['GET'])
+    def get_call(record_id):
+        record = next((item for item in call_records if item['record_id'] == record_id), None)
+        return jsonify(record) if record else ('', 404)
+
+    @app.route('/api/calls', methods=['POST'])
+    def create_call():
+        record_data = request.json
+        record_id = str(uuid.uuid4())
+        new_record = {
+            'record_id': record_id,
+            'timestamp': datetime.now(),
+            'caller_id': record_data.get('caller_id', 'Unknown'),
+            'speech_text': record_data.get('speech_text', '')
+        }
+        call_records.append(new_record)
+        return jsonify(new_record), 201
+
+    @app.route('/api/calls/<record_id>', methods=['PUT'])
+    def update_call(record_id):
+        record = next((item for item in call_records if item['record_id'] == record_id), None)
+        if record:
+            record_data = request.json
+            record['caller_id'] = record_data.get('caller_id', record['caller_id'])
+            record['speech_text'] = record_data.get('speech_text', record['speech_text'])
+            return jsonify(record)
+        else:
+            return ('', 404)
+
+    @app.route('/api/calls/<record_id>', methods=['DELETE'])
+    def delete_call(record_id):
+        global call_records
+        call_records = [record for record in call_records if record['record_id'] != record_id]
+        return Response(status=204)
 
 
 if __name__ == '__main__':
