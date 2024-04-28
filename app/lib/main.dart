@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_fadein/flutter_fadein.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:tumai/forest_dashboard.dart';
+import 'package:tumai/incident_dashboard.dart';
 
 Marker? currentMarker;
 
@@ -42,7 +43,7 @@ class MapSampleState extends State<MapSample> {
 
   bool showPopup = false;
 
-  static const CameraPosition _kGooglePlex = CameraPosition(
+  static const CameraPosition initialPosition = CameraPosition(
     target: LatLng(1.788250, -61.135222),
     zoom: 14.4746,
   );
@@ -51,23 +52,23 @@ class MapSampleState extends State<MapSample> {
   Widget build(BuildContext context) {
     Widget googleMap = GoogleMap(
       mapType: MapType.hybrid,
-      initialCameraPosition: _kGooglePlex,
+      initialCameraPosition: initialPosition,
       onMapCreated: (GoogleMapController controller) {
         _controller.complete(controller);
       },
       markers: Set.from(currentMarker == null ? [] : [currentMarker]),
       scrollGesturesEnabled: !showPopup,
-      onTap: (lat) async {
+      onTap: (pointer) async {
         if (showPopup) {
           return;
         }
         setState(() {
           currentMarker =
-              Marker(markerId: const MarkerId("0"), position: lat, flat: false);
+              Marker(markerId: const MarkerId("0"), position: pointer, flat: false);
         });
         await (await _controller.future).animateCamera(
             CameraUpdate.newCameraPosition(
-                CameraPosition(target: lat, zoom: 18)));
+                CameraPosition(target: pointer, zoom: 18)));
         await (await _controller.future).animateCamera(
             CameraUpdate.scrollBy(MediaQuery.of(context).size.width / 3, 0));
         setState(() {
@@ -84,7 +85,7 @@ class MapSampleState extends State<MapSample> {
             FadeIn(
                 duration: const Duration(milliseconds: 1000),
                 curve: Curves.elasticIn,
-                child: ForestDashboard(callback: () {
+                child: IncidentDashboard(callback: () {
                   setState(() {
                     Future.delayed(Duration(milliseconds: 400), () {
                       setState(() {
@@ -94,7 +95,7 @@ class MapSampleState extends State<MapSample> {
                     },);
                   });
 
-                },))
+                }, currentMarker: currentMarker!,))
         ],
       ),
     );

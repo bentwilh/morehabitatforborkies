@@ -23,24 +23,11 @@ class ForestChangeData {
   }
 }
 
-class UInterceptor extends Interceptor {
-  @override
-  void onRequest(
-      RequestOptions options,
-      RequestInterceptorHandler handler,
-      ) {
-    super.onRequest(options, handler);
-    print(options.path);
-    print(options.data);
-    print(handler.toString());
-  }
-}
-
 class ForestDataRepository {
   static const String _endpoint = 'http://5.75.170.84/get-image';
 
   final Dio _dio;
-  ForestDataRepository({Dio? dio}) : _dio = dio ?? Dio(BaseOptions(connectTimeout: Duration(seconds: 130),sendTimeout: Duration(seconds: 130),receiveTimeout: Duration(seconds: 130)))..interceptors.add(UInterceptor());
+  ForestDataRepository({Dio? dio}) : _dio = dio ?? Dio(BaseOptions(connectTimeout: Duration(seconds: 130),sendTimeout: Duration(seconds: 130),receiveTimeout: Duration(seconds: 130)));
 
   Future<bool> callNumber() async {
     return await _dio.get('https://morehabitatforborkies-production.up.railway.app/outboundCall').then((value) {
@@ -77,7 +64,6 @@ class ForestDataRepository {
         throw Exception('Failed to load forest change data');
       }
     } on DioError catch (e) {
-      // Handle DioError, including timeout, no internet, etc.
       print('DioError: $e');
       throw e;
     }

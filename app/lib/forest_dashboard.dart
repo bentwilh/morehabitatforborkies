@@ -38,7 +38,7 @@ class ForestDashboard extends StatelessWidget {
       child: SizedBox.expand(
           child: Card(
               elevation: 16,
-              child: IncidentDashboard())),
+              child: ForestDashboardWidget(callback))),
     );
   }
 }
@@ -241,7 +241,7 @@ class _CallToActionCallActionButtonState extends State<CallToActionCallActionBut
       setState(() {
         loading = true;
       });
-      if (await ForestDataRepository().callNumber()) {
+        if (await ForestDataRepository().callNumber()) {
         setState(() {
           success = true;
         });

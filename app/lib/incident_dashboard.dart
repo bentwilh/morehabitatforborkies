@@ -5,31 +5,98 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:gap/gap.dart';
-import 'package:lottie/lottie.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:lottie/lottie.dart' as l;
 import 'package:tumai/global.dart';
+import 'package:tumai/repository.dart';
 
 import 'incident.dart';
 
-class IncidentDashboard extends StatelessWidget {
+typedef CloseCallback = void Function();
+class IncidentDashboard extends StatefulWidget {
 
-  final String imageNow;
-  final List<String> otherImages;
+  final Marker currentMarker;
+  final CloseCallback callback;
 
-  const IncidentDashboard({super.key, required this.imageNow, required this.otherImages});
+  const IncidentDashboard({super.key, required this.currentMarker, required this.callback});
+
+  @override
+  State<IncidentDashboard> createState() => _IncidentDashboardState();
+}
+
+class _IncidentDashboardState extends State<IncidentDashboard> {
+
+  bool loading = false;
+  String? imageNow;
+  List<String>? otherImages;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+  }
+
+  Future<void> fetchData() async {
+    setState(() {
+      loading = true;
+    });
+    print("Now starting the request");
+    Map<String, String> map = await ForestDataRepository().getForestChangeData(
+        ForestRequestDto(
+            lat: widget.currentMarker.position.latitude,
+            lon: widget.currentMarker.position.longitude,
+            startYear: 2023,
+            startMonth: 8,
+            endYear: 2023,
+            endMonth: 12)
+    );
+    print("Now ending the request");
+    imageNow = map.entries.last.value;
+    otherImages = map.entries.toList().map((e) => e.value).toList();
+    setState(() {
+      loading = false;
+    });
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Flexible(flex: 1, child: CloseButtonRow()),
-        Flexible(flex: 6, child: ImageSection(otherImages: otherImages, imageNow: imageNow,)), // Image
-        Flexible(flex: 4, child: IncidentSection()), // History
-      ],
+    Widget child = Container();
+
+    if (loading) {
+      child = LoadingIndicator();
+    }
+    else if (imageNow != null) {
+      child = Column(
+        children: [
+          Flexible(flex: 1, child: CloseButtonRow(widget.callback)),
+          Flexible(flex: 6, child: ImageSection(otherImages: otherImages!, imageNow: imageNow!,)), // Image
+          Flexible(flex: 4, child: IncidentSection()), // History
+        ],
+      );} else {
+      child = Container();
+    }
+    return Padding(
+      padding: EdgeInsets.only(
+          top: 48,
+          right: 36,
+          left: MediaQuery.of(context).size.width / 3,
+          bottom: 48),
+      child: SizedBox.expand(
+          child: Card(
+              elevation: 16,
+              child: child)),
     );
   }
 }
 
 class CloseButtonRow extends StatelessWidget {
+
+  final CloseCallback callback;
+
+  CloseButtonRow(this.callback);
+
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -47,8 +114,7 @@ class CloseButtonRow extends StatelessWidget {
           ),
         ),
         onTap: () {
-          // TODO: Close
-          print("Close the dashboard!");
+          callback.call();
         },
       ),
     );
@@ -252,9 +318,8 @@ class AddPersonButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextButton(
-        onPressed: () {
-          // TODO: Add add person functionality
-          print("Add person pressed");
+        onPressed: () async {
+          await ForestDataRepository().callNumber();
         },
         child: const Row(
           children: [
@@ -342,7 +407,7 @@ class LoadingIndicator extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Lottie.network(
+          l.Lottie.network(
               'https://lottie.host/c63d9754-1947-422b-997e-e1fc1875ea48/7MxCiNgUaP.json',
               width: 200,
               height: 200),
