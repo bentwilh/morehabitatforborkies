@@ -41,14 +41,6 @@ openai.api_key = AZURE_OPENAI_SERVICE_KEY
 call_records = []
 
 
-@app.route('/')
-def hello_world():
-    return "Hello World!"
-
-
-app = Flask(__name__)
-
-
 def get_media_recognize_choice_options(call_connection_client: CallConnectionClient, text_to_play: str,
                                        target_participant: str, choices: any, context: str):
     play_source = TextSource(text=text_to_play, voice_name=SPEECH_TO_TEXT_VOICE)
@@ -84,6 +76,11 @@ def handle_hangup(call_connection_id):
     call_automation_client.get_call_connection(call_connection_id).hang_up(is_for_everyone=True)
 
 
+@app.route('/')
+def hello_world():
+    return "Hello World!"
+
+
 # GET endpoint to place phone call
 @app.route('/outboundCall')
 def outbound_call_handler():
@@ -111,41 +108,6 @@ def callback_events_handler():
             app.logger.info("Starting recognize")
             handle_play(call_connection_client=call_connection_client,
                         text_to_play=OUTGOING_MESSAGE)
-
-        # # Perform different actions based on DTMF tone received from RecognizeCompleted event
-        # elif event.type == "Microsoft.Communication.RecognizeCompleted":
-        #     app.logger.info("Recognize completed: data=%s", event.data)
-        #     if event.data['recognitionType'] == "choices":
-        #         label_detected = event.data['choiceResult']['label'];
-        #         phraseDetected = event.data['choiceResult']['recognizedPhrase'];
-        #         app.logger.info("Recognition completed, labelDetected=%s, phraseDetected=%s, context=%s",
-        #                         label_detected, phraseDetected, event.data.get('operationContext'))
-        #         if label_detected == CONFIRM_CHOICE_LABEL:
-        #             text_to_play = CONFIRMED_TEXT
-        #         else:
-        #             text_to_play = CANCEL_TEXT
-        #         handle_play(call_connection_client=call_connection_client, text_to_play=text_to_play)
-        #
-        # elif event.type == "Microsoft.Communication.RecognizeFailed":
-        #     failedContext = event.data['operationContext']
-        #     if (failedContext and failedContext == RETRY_CONTEXT):
-        #         handle_play(call_connection_client=call_connection_client, text_to_play=NO_RESPONSE)
-        #     else:
-        #         resultInformation = event.data['resultInformation']
-        #         app.logger.info("Encountered error during recognize, message=%s, code=%s, subCode=%s",
-        #                         resultInformation['message'],
-        #                         resultInformation['code'],
-        #                         resultInformation['subCode'])
-        #         if (resultInformation['subCode'] in [8510, 8510]):
-        #             textToPlay = CUSTOMER_QUERY_TIMEOUT
-        #         else:
-        #             textToPlay = INVALID_AUDIO
-        #
-        #         get_media_recognize_choice_options(
-        #             call_connection_client=call_connection_client,
-        #             text_to_play=textToPlay,
-        #             target_participant=target_participant,
-        #             choices=get_choices(), context=RETRY_CONTEXT)
 
         elif event.type in ["Microsoft.Communication.PlayCompleted", "Microsoft.Communication.PlayFailed"]:
             app.logger.info("Terminating call")
@@ -180,7 +142,7 @@ def handle_callback(contextId):
                     app.logger.info("Recognition completed, speech_text =%s", speech_text)
                     if speech_text is not None and len(speech_text) > 0:
                         static_response = "Thank you for your input. One of our representatives will be in touch if further context or action should be required. " \
-                                          "If you are are not happy with the statement you gave or want to provide more context, just continue talking. Otherwise, feel free to hang up now. "
+                                          "If you are are not happy with the statement you gave or want to provide more context, just continue talking. Otherwise, feel free to hang up now."
                         handle_recognize(static_response, caller_id, call_connection_id, context="StaticResponse")
                         record_id = str(uuid.uuid4())
                         new_record = {
@@ -201,7 +163,7 @@ def handle_callback(contextId):
                     handle_recognize("Please repeat that.", caller_id, call_connection_id)
                     max_retry -= 1
                 else:
-                    handle_play(call_connection_id, caller_id, "Have a wonderful day, goodbye!", "EndCall")
+                    handle_play(call_automation_client, "Have a wonderful day, goodbye!")
 
             elif event.type == "Microsoft.Communication.PlayCompleted":
                 context = event.data['operationContext']
