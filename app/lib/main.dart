@@ -88,6 +88,18 @@ class MapSampleState extends State<MapSample> {
       body: Stack(
         children: [
           googleMap,
+          Align(
+            alignment: Alignment.topCenter,
+            child: Card(
+              margin: EdgeInsets.all(8),
+              shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(16))),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Image.asset("assets/woodwatcher.png", width: 250,),
+                )),
+          ),
+
           if (showPopup)
             FadeIn(
                 duration: const Duration(milliseconds: 1000),

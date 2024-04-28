@@ -72,18 +72,18 @@ class _IncidentDashboardState extends State<IncidentDashboard> {
       child = Column(
         children: [
           Flexible(flex: 1, child: CloseButtonRow(widget.callback)),
-          Flexible(flex: 6, child: ImageSection(otherImages: otherImages!, imageNow: imageNow!)), // Image
-          Flexible(flex: 4, child: IncidentSection(widget.currentMarker, widget.callback)), // History
+          Flexible(flex: 10, child: ImageSection(otherImages: otherImages!, imageNow: imageNow!)), // Image
+          Flexible(flex: 6, child: IncidentSection(widget.currentMarker, widget.callback)), // History
         ],
       );} else {
       child = Container();
     }
     return Padding(
       padding: EdgeInsets.only(
-          top: 48,
+          top: 72,
           right: 36,
           left: MediaQuery.of(context).size.width / 3,
-          bottom: 48),
+          bottom: 36),
       child: SizedBox.expand(
           child: Card(
               elevation: 16,
@@ -192,8 +192,12 @@ class IncidentSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Divider(height: 2, color: Colors.black45,),
+        ),
         IncidentTitleRow(currentMarker, callback),
-        const StatisticsRow(values: {'-10%':'Wach', '69420':'Merge Conflicts', '100%': 'Spaß'}),
+        //const StatisticsRow(values: {'-10%':'Wach', '69420':'Merge Conflicts', '100%': 'Spaß'}),
         const Expanded(child: IncidentList())
       ],
     );
@@ -334,7 +338,7 @@ class ResolveIncidentButton extends StatelessWidget {
             Icon(Icons.done_all_outlined),
             Gap(4),
             Text('Resolve Incident', style: TextStyle(
-              fontSize: 32
+              fontSize: 24
             ),),
           ],
         ));
@@ -356,7 +360,7 @@ class AddPersonButton extends StatelessWidget {
             Icon(Icons.wifi_calling_3_outlined),
             Gap(4),
             Text('Notify abt. issue', style: TextStyle(
-                fontSize: 32
+                fontSize: 24
             )),
           ],
         ));
@@ -447,7 +451,7 @@ class LoadingIndicator extends StatelessWidget {
               width: 200,
               height: 200),
           const Gap(16),
-          const Text('Loading...'),
+          const Text('  '),
         ],
       ),
     );
