@@ -36,17 +36,16 @@ def get_unet():
     c5 = Conv2D(16, (3, 3), activation='relu', padding='same')(m5)
     outputs = Conv2D(1, (1, 1), activation='sigmoid')(c5)
     model = Model(inputs=inputs, outputs=outputs)
-    model.summary()
+    #model.summary()
     model.compile(optimizer=Adam(), loss=binary_crossentropy, metrics=['accuracy'])
     return model
-
 
 class ImagePredictor:
     def __init__(self, model_path):
         # Load the model
         self.model = get_unet()
         self.model.load_weights(model_path)
-        self.model.summary()  # Display model structure
+        #self.model.summary()  # Display model structure
         self.image_size = (512, 512)  # Expected input size for the model
 
     def _load_and_preprocess_image(self, image_path):
@@ -73,16 +72,3 @@ class ImagePredictor:
             mask = self.predict_mask(path)
             masks.append(mask)
         return masks
-
-# Usage example
-if __name__ == "__main__":
-    predictor = ImagePredictor('./unet_rgb.weights.h5')
-    # For a single image prediction
-    mask = predictor.predict_mask('SingleImgTest.tiff')
-    cv2.imwrite('predicted_mask.png', mask)
-
-    # For multiple images
-    images = ['SingleImgTest.tiff', 'SingleImgTest.tiff']
-    masks = predictor.predict_masks(images)
-    for i, mask in enumerate(masks):
-        cv2.imwrite(f'predicted_mask_{i}.png', mask)

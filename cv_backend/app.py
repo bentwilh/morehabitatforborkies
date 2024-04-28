@@ -10,11 +10,20 @@ import math
 from predictor import ImagePredictor
 from cacheAccess import CacheAccess
 from dotenv import load_dotenv
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+import base64
+import logging
+
+# Configure logging
+#logging.basicConfig(filename='image_analysis.log', level=logging.INFO, 
+#                    format='%(asctime)s:%(levelname)s:%(message)s')
+
+
 
 load_dotenv()
 
 app = Flask(__name__)
-
 
 def get_oauth_session():
     client = BackendApplicationClient(client_id=os.environ.get("CLIENT_ID"))
@@ -42,107 +51,209 @@ def lat_lon_to_tile_index(lat, lon, tile_size_km=10):
         
         return lat_index, lon_index
 
+def validate_data(data):
+    keys_to_check = ['lat', 'lon', 'start_year', 'start_month', 'end_year', 'end_month']
+    if not all(key in data for key in keys_to_check):
+        print("Some Key missing")
+        return False
+    try:
+        lat = float(data['lat'])
+        lon = float(data['lon'])
+
+        start_year = int(data['start_year'])
+        start_month = int(data['start_month'])
+        end_year = int(data['end_year'])
+        end_month = int(data['end_month'])
+
+        start_date = datetime(start_year, start_month, 1)
+        end_date = datetime(end_year, end_month, 28)
+        if start_date>=end_date:
+            print("Invalid Time 1")
+            return False
+
+        min_date = datetime(2015, 1, 1)
+        max_date = datetime(2025, 12, 31)
+        if not (min_date <= start_date <= max_date and min_date <= end_date <= max_date):
+            print("Invalid Time 2")
+            return False
+        return True
+    except ValueError as e:
+        print("Parsing failed")
+        return False
+
+def generate_file_paths(lat_index, long_index, start_year, start_month, end_year, end_month):
+    start_date = datetime(start_year, start_month, 1)
+    end_date = datetime(end_year, end_month, 1)
+    
+    current_date = start_date
+    file_paths = []
+    
+    while current_date <= end_date:
+        file_name = f"cv_backend/cache/{lat_index}_{long_index}/{current_date.strftime('%Y_%m')}.jpg"
+        file_paths.append(file_name)
+        
+        current_date += relativedelta(months=1)
+    
+    return file_paths
+
+def generate_json_from_complete_paths(file_paths):
+    files_data = {}
+    
+    for file_path in file_paths:
+        with open(file_path, 'rb') as file:
+            file_content = file.read()
+            encoded_content = base64.b64encode(file_content).decode('utf-8')
+            files_data[file_path] = encoded_content
+    
+    return jsonify(files_data)
+
 @app.route('/get-image', methods=['POST'])
 def get_image():
     cache = CacheAccess()
     data = request.get_json()
-    if not data or 'lat' not in data or 'lon' not in data:
-        return jsonify({"error": "Latitude and longitude must be provided"}), 400
+    if not validate_data(data):
+        return jsonify({"error": "Something is wrong, I can feel it"}), 400
     lat = float(data['lat'])
     lon = float(data['lon'])
+    start_year = int(data['start_year'])
+    start_month = int(data['start_month'])
+    end_year = int(data['end_year'])
+    end_month = int(data['end_month'])
+    start_date = datetime(start_year, start_month, 1)
+    end_date = datetime(end_year, end_month, 28)
     lat_index, long_index = lat_lon_to_tile_index(lat, lon)
-
-    cached_path = cache.get(lat_index, long_index, 2022, 1)
-    if cached_path:
-        return send_file(cached_path, mimetype='image/jpeg')
+    desired_paths = generate_file_paths(lat_index, long_index, start_year, start_month, end_year, end_month)
+    cached_paths = cache.get(lat_index, long_index, start_year, start_month, end_year, end_month)
+    print("Reaches Cache Check")
+    print(desired_paths)
+    print(cached_paths)
+    if cached_paths and all(des in cached_paths for des in desired_paths):
+        return generate_json_from_complete_paths(cached_paths)
+    
+    toGenerate = [des for des in desired_paths if not des in cached_paths]
 
     size = 0.01
 
     bbox = [lon - size, lat - size, lon + size, lat + size]
-    request_payload = {
-        "input": {
-            "bounds": {
-                "properties": {
-                    "crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+    for pathToGen in toGenerate:
+        yearToGen, monthToGen = pathToGen.split('/')[3].split('_')
+        monthToGen = monthToGen.split(".")[0]
+        date_str_start = f"{yearToGen}-{int(monthToGen):02d}-01T00:00:00Z"
+        date_str_end = f"{yearToGen}-{int(monthToGen):02d}-28T00:00:00Z"
+        request_payload = {
+            "input": {
+                "bounds": {
+                    "properties": {
+                        "crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+                    },
+                    "bbox": bbox
                 },
-                "bbox": bbox
-            },
-            "data": [
-                {
-                    "type": "sentinel-2-l2a",
-                    "dataFilter": {
-                        "timeRange": {
-                            "from": "2022-01-01T00:00:00Z",
-                            "to": "2022-01-31T00:00:00Z"
+                "data": [
+                    {
+                        "type": "sentinel-2-l2a",
+                        "dataFilter": {
+                            "timeRange": {
+                                "from": date_str_start,
+                                "to": date_str_end
+                            }
                         }
                     }
-                }
-            ]
-        },
-        "output": {
-            "width": 1024,
-            "height": 1024,
-            "format": "TIFF"
+                ]
+            },
+            "output": {
+                "width": 1024,
+                "height": 1024,
+                "format": "TIFF"
+            }
         }
-    }
 
-    evalscript = """
-    //VERSION=3
-    function setup() {
-      return {
-        input: ["B02", "B03", "B04"],
-        output: {
-          bands: 3,
-          sampleType: "AUTO",
-          format: "TIFF"
+        evalscript = """
+        //VERSION=3
+        function setup() {
+        return {
+            input: ["B02", "B03", "B04", "CLP"],
+            output: {
+            bands: 4,
+            sampleType: "AUTO",
+            format: "TIFF"
+            }
         }
-      }
-    }
+        }
 
-    function evaluatePixel(sample) {
-      return [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02];
-    }
-    """
+        function evaluatePixel(sample) {
+        return [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02];
+        }
+        """
 
-    oauth = get_oauth_session()
-    token = get_token(oauth)
-    response = oauth.post('https://services.sentinel-hub.com/api/v1/process',
-                          files={'request': (None, json.dumps(request_payload), 'application/json'),
-                                 'evalscript': (None, evalscript, 'application/javascript')})
+        oauth = get_oauth_session()
+        token = get_token(oauth)
+        response = oauth.post('https://services.sentinel-hub.com/api/v1/process',
+                            files={'request': (None, json.dumps(request_payload), 'application/json'),
+                                    'evalscript': (None, evalscript, 'application/javascript')})
+        if response.ok:
+            filename = 'output_image.tiff'
+            with open(filename, 'wb') as f:
+                f.write(response.content)
+            
+            
+            image = Image.open(filename)
 
-    if response.ok:
-        filename = 'output_image.tiff'
-        with open(filename, 'wb') as f:
-            f.write(response.content)
+            image_array = np.asarray(image)
+            if np.mean(image_array[3])>100:
+                continue            
+            
+            image = Image.open(filename).convert('RGBA')
+            
+            predictor = ImagePredictor('./unet_rgb.weights.h5')
+            mask = predictor.predict_mask(filename)
+            #logging.info(f"Image details - Mode: {image.mode}, Size: {image.size}")
 
-        image = Image.open(filename).convert('RGBA')
+            # Use the predictor to generate a mask
+            predictor = ImagePredictor('./unet_rgb.weights.h5')
+            mask = predictor.predict_mask(filename)
 
-        predictor = ImagePredictor('./unet_rgb.weights.h5')
-        mask = predictor.predict_mask(filename)
+            # Convert mask to a numpy array for analysis (assuming it's not already one)
+            if not isinstance(mask, np.ndarray):
+                mask = np.array(mask)
 
-        # Resize mask to match the image size
-        mask_image = Image.fromarray(mask)
-        mask_image = mask_image.resize(image.size, Image.NEAREST)  # Resize the mask to match the image
+            # Log mask details
+            #logging.info(f"Mask shape: {mask.shape}")
+            #logging.info(f"Mask dtype: {mask.dtype}")
+            #logging.info(f"Mask min value: {np.min(mask)}")
+            #logging.info(f"Mask max value: {np.max(mask)}")
+            #logging.info("Mask sample values: " + str(mask.flatten()[:10]))  # Example: log first 10 values
 
-        # Normalize and create RGBA mask
-        normalized_mask = np.array(mask_image) / 255.0
-        gradient_mask = np.zeros((image.height, image.width, 4), dtype=np.uint8)
-        gradient_mask[..., 1] = 255  # Red channel
-        gradient_mask[..., 3] = (normalized_mask * 255).astype(np.uint8)  # Alpha channel
-        gradient_mask_image = Image.fromarray(gradient_mask, 'RGBA')
+            # Analysis of mask data
+            unique_values, counts = np.unique(mask, return_counts=True)
+            #logging.info(f"Unique mask values: {dict(zip(unique_values, counts))}")
 
-        # Composite the images
-        overlayed_image = Image.alpha_composite(image, gradient_mask_image)
-        overlayed_image = overlayed_image.convert('RGB')
-        index_dir = Path("./cache") / Path(f"{lat_index}_{long_index}")
-        print(index_dir)
-        index_dir.mkdir(parents=True, exist_ok=True)
-        jpeg_image_path = index_dir / Path('overlayed_image.jpg')
-        overlayed_image.save(jpeg_image_path, 'JPEG', quality=90)  # Save as JPEG with high quality
+            # Resize mask to match the image size
+            mask_image = Image.fromarray(mask)
+            mask_image = mask_image.resize(image.size, Image.NEAREST)  # Resize the mask to match the image
 
-        return send_file(jpeg_image_path, mimetype='image/jpeg')
-    else:
-        return jsonify({"error": "Failed to fetch image: " + str(response.status_code)}), 500
+            # Normalize and create RGBA mask
+            normalized_mask = np.array(mask_image) / 255.0
+            gradient_mask = np.zeros((image.height, image.width, 4), dtype=np.uint8)
+            gradient_mask[..., 1] = 255  # Red channel
+            gradient_mask[..., 3] = (normalized_mask * 255).astype(np.uint8) 
+            gradient_mask_image = Image.fromarray(gradient_mask, 'RGBA')
+
+            # Composite the images
+            overlayed_image = Image.alpha_composite(image, gradient_mask_image)
+
+            overlayed_image = overlayed_image.convert('RGB')
+            print("Reaches next path update")
+            index_dir = Path(f"cv_backend/cache/{lat_index}_{long_index}")
+            index_dir.mkdir(parents=True, exist_ok=True)
+            jpeg_image_path = index_dir / Path(f'{yearToGen}_{monthToGen}.jpg')
+            overlayed_image.save(jpeg_image_path, 'JPEG', quality=90)  
+            print("Image saved")
+        else:
+            return jsonify({"error": "Failed to fetch image: " + str(response.status_code)}), 500
+    cached_paths_refresh = cache.get(lat_index, long_index, start_year, start_month, end_year, end_month)
+    return generate_json_from_complete_paths(cached_paths_refresh)
+
+
 
 @app.route("/")
 def hello_world():
