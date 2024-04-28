@@ -53,6 +53,18 @@ incidents = [
 ]
 
 
+def summarize_text(text):
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "system", "content": "You are a helpful office assistant looking over call transcripts"
+                                                "from calls about deforestation or tree damage (or anything tree/forest related)."
+                                                "Take a look at the following transcript. Summarize it to the best of your ability."
+                                                "If it is not related to your job/the relevant fields in any way, just note that."},
+                  {"role": "user", "content": text}]
+    )
+    return response['choices'][0]['message']['content']
+
+
 def get_media_recognize_choice_options(call_connection_client: CallConnectionClient, text_to_play: str,
                                        target_participant: str, choices: any, context: str):
     play_source = TextSource(text=text_to_play, voice_name=SPEECH_TO_TEXT_VOICE)
@@ -155,6 +167,7 @@ def handle_callback(contextId):
                     speech_text = event.data['speechResult']['speech'];
                     app.logger.info("Recognition completed, speech_text =%s", speech_text)
                     if speech_text is not None and len(speech_text) > 0:
+                        summarized_text = summarize_text(speech_text)
                         static_response = "Thank you for your input. One of our representatives will be in touch if further context or action should be required. " \
                                           "If you are are not happy with the statement you gave or want to provide more context, just continue talking. Otherwise, feel free to hang up now."
                         handle_recognize(static_response, caller_id, call_connection_id, context="StaticResponse")
@@ -163,7 +176,7 @@ def handle_callback(contextId):
                             'record_id': record_id,
                             'timestamp': datetime.now(),
                             'caller_id': caller_id,
-                            'speech_text': speech_text
+                            'speech_text': summarized_text
                         }
                         call_records.append(new_record)
                         app.logger.info("Call record added: %s", new_record)
@@ -287,8 +300,8 @@ def create_incident():
 @app.route('/api/incidents', methods=['GET'])
 def get_incidents():
     if not incidents:
-        return jsonify({})  # Return an empty JSON object
-    return jsonify(incidents)  # Return the list of call records as JSON
+        return jsonify({})
+    return jsonify(incidents)
 
 
 # Endpoint to get a single incident by ID
