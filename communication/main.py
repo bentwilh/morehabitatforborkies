@@ -32,8 +32,8 @@ AZURE_OPENAI_SERVICE_KEY = os.getenv("AZURE_OPENAI_SERVICES_KEY")
 CALLBACK_EVENTS_URI = "https://morehabitatforborkies-production.up.railway.app/api/callbacks"
 SPEECH_TO_TEXT_VOICE = "en-US-NancyNeural"
 OUTGOING_MESSAGE = "Hello, this is a notification from wood watchers." \
-            "We have detected potential environmental damage in your area of responsiblity." \
-            "We kindly ask you to call back this number to give us an update once you have investigated the situation. Thank you."
+                   "We have detected potential environmental damage in your area of responsiblity." \
+                   "We kindly ask you to call back this number to give us an update once you have investigated the situation. Thank you."
 call_automation_client = CallAutomationClient.from_connection_string(ACS_CONNECTION_STRING)
 AZURE_OPENAI_DEPLOYMENT_MODEL = "gpt-3.5-turbo"
 openai.api_key = AZURE_OPENAI_SERVICE_KEY
@@ -133,8 +133,10 @@ def handle_callback(contextId):
 
             app.logger.info("call connected : data=%s", event.data)
             if event.type == "Microsoft.Communication.CallConnected":
-                handle_recognize("Hello! Thanks for calling back! Please let us know what you have found out about the incident.", caller_id, call_connection_id,
-                                 context="GetFreeFormText")
+                handle_recognize(
+                    "Hello! Thanks for calling back! Please let us know what you have found out about the incident.",
+                    caller_id, call_connection_id,
+                    context="GetFreeFormText")
 
             elif event.type == "Microsoft.Communication.RecognizeCompleted":
                 if event.data['recognitionType'] == "speech":
@@ -209,44 +211,49 @@ def incoming_call_handler():
                             answer_call_result.call_connection_id)
             return Response(status=200)
 
-    @app.route('/api/calls', methods=['GET'])
-    def get_calls():
-        return jsonify(call_records)
 
-    @app.route('/api/calls/<record_id>', methods=['GET'])
-    def get_call(record_id):
-        record = next((item for item in call_records if item['record_id'] == record_id), None)
-        return jsonify(record) if record else ('', 404)
+@app.route('/api/calls', methods=['GET'])
+def get_calls():
+    return jsonify(call_records)
 
-    @app.route('/api/calls', methods=['POST'])
-    def create_call():
+
+@app.route('/api/calls/<record_id>', methods=['GET'])
+def get_call(record_id):
+    record = next((item for item in call_records if item['record_id'] == record_id), None)
+    return jsonify(record) if record else ('', 404)
+
+
+@app.route('/api/calls', methods=['POST'])
+def create_call():
+    record_data = request.json
+    record_id = str(uuid.uuid4())
+    new_record = {
+        'record_id': record_id,
+        'timestamp': datetime.now(),
+        'caller_id': record_data.get('caller_id', 'Unknown'),
+        'speech_text': record_data.get('speech_text', '')
+    }
+    call_records.append(new_record)
+    return jsonify(new_record), 201
+
+
+@app.route('/api/calls/<record_id>', methods=['PUT'])
+def update_call(record_id):
+    record = next((item for item in call_records if item['record_id'] == record_id), None)
+    if record:
         record_data = request.json
-        record_id = str(uuid.uuid4())
-        new_record = {
-            'record_id': record_id,
-            'timestamp': datetime.now(),
-            'caller_id': record_data.get('caller_id', 'Unknown'),
-            'speech_text': record_data.get('speech_text', '')
-        }
-        call_records.append(new_record)
-        return jsonify(new_record), 201
+        record['caller_id'] = record_data.get('caller_id', record['caller_id'])
+        record['speech_text'] = record_data.get('speech_text', record['speech_text'])
+        return jsonify(record)
+    else:
+        return ('', 404)
 
-    @app.route('/api/calls/<record_id>', methods=['PUT'])
-    def update_call(record_id):
-        record = next((item for item in call_records if item['record_id'] == record_id), None)
-        if record:
-            record_data = request.json
-            record['caller_id'] = record_data.get('caller_id', record['caller_id'])
-            record['speech_text'] = record_data.get('speech_text', record['speech_text'])
-            return jsonify(record)
-        else:
-            return ('', 404)
 
-    @app.route('/api/calls/<record_id>', methods=['DELETE'])
-    def delete_call(record_id):
-        global call_records
-        call_records = [record for record in call_records if record['record_id'] != record_id]
-        return Response(status=204)
+@app.route('/api/calls/<record_id>', methods=['DELETE'])
+def delete_call(record_id):
+    global call_records
+    call_records = [record for record in call_records if record['record_id'] != record_id]
+    return Response(status=204)
 
 
 if __name__ == '__main__':
