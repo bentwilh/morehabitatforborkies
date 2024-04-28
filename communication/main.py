@@ -20,17 +20,13 @@ from azure.communication.sms import SmsClient
 # Flask application setup
 app = Flask(__name__)
 
-# Your ACS resource connection string, source and target phone numbers
+# Azure Services
 ACS_CONNECTION_STRING = os.getenv("ACS_CONNECTION_STRING")
 ACS_PHONE_NUMBER = os.getenv("ACS_PHONE_NUMBER")
 TARGET_PHONE_NUMBER = "+4915204446662"
 COGNITIVE_SERVICES_ENDPOINT = os.getenv("COGNITIVE_SERVICES_ENDPOINT")
 AZURE_OPENAI_SERVICE_KEY = os.getenv("AZURE_OPENAI_SERVICES_KEY")
-
-# Callback URI to handle events.
 CALLBACK_EVENTS_URI = "https://morehabitatforborkies-production.up.railway.app/api/callbacks"
-
-# Text-to-speech voice and initial announcement text
 SPEECH_TO_TEXT_VOICE = "en-US-NancyNeural"
 MAIN_MENU = "Hello, this is notification from wood watchers. We have detected potential environmental damage in your area of responsiblity. Do you want to receive a summary notification via SMS?"
 CONFIRMED_TEXT = "Thank you, a summary SMS has been sent."
@@ -41,8 +37,6 @@ INVALID_AUDIO = "I’m sorry, I didn’t understand your response, please try ag
 CONFIRM_CHOICE_LABEL = "Confirm"
 CANCEL_CHOICE_LABEL = "Cancel"
 RETRY_CONTEXT = "retry"
-
-# Create the call automation client
 call_automation_client = CallAutomationClient.from_connection_string(ACS_CONNECTION_STRING)
 
 
@@ -154,6 +148,13 @@ def callback_events_handler():
             call_connection_client.hang_up(is_for_everyone=True)
 
         return Response(status=200)
+
+
+@app.route("/api/incomingCall", methods=['POST'])
+def incoming_call_handler():
+    # TODO
+    print("Received call")
+    return Response(status=200)
 
 
 def send_sms():
