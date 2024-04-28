@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_fadein/flutter_fadein.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:tumai/forest_dashboard.dart';
+
+Marker? currentMarker;
 
 void main() {
   runApp(const MyApp());
@@ -37,9 +38,8 @@ class MapSample extends StatefulWidget {
 
 class MapSampleState extends State<MapSample> {
   final Completer<GoogleMapController> _controller =
-  Completer<GoogleMapController>();
+      Completer<GoogleMapController>();
 
-  Marker? currentMarker = null;
   bool showPopup = false;
 
   static const CameraPosition _kGooglePlex = CameraPosition(
@@ -49,7 +49,6 @@ class MapSampleState extends State<MapSample> {
 
   @override
   Widget build(BuildContext context) {
-
     Widget googleMap = GoogleMap(
       mapType: MapType.hybrid,
       initialCameraPosition: _kGooglePlex,
@@ -57,18 +56,20 @@ class MapSampleState extends State<MapSample> {
         _controller.complete(controller);
       },
       markers: Set.from(currentMarker == null ? [] : [currentMarker]),
-      scrollGesturesEnabled: showPopup,
+      scrollGesturesEnabled: !showPopup,
       onTap: (lat) async {
         if (showPopup) {
           return;
         }
         setState(() {
-          currentMarker = Marker(markerId: MarkerId("0"), position: lat, flat: false);
+          currentMarker =
+              Marker(markerId: const MarkerId("0"), position: lat, flat: false);
         });
-        await (await _controller.future)
-            .animateCamera(CameraUpdate
-            .newCameraPosition(CameraPosition(target: lat, zoom: 18)));
-        await (await _controller.future).animateCamera(CameraUpdate.scrollBy(MediaQuery.of(context).size.width/3, 0));
+        await (await _controller.future).animateCamera(
+            CameraUpdate.newCameraPosition(
+                CameraPosition(target: lat, zoom: 18)));
+        await (await _controller.future).animateCamera(
+            CameraUpdate.scrollBy(MediaQuery.of(context).size.width / 3, 0));
         setState(() {
           showPopup = true;
         });
@@ -78,12 +79,24 @@ class MapSampleState extends State<MapSample> {
     return Scaffold(
       body: Stack(
         children: [
-            googleMap,
-            if (showPopup)
-            FadeIn(duration: Duration(milliseconds: 1000), curve: Curves.elasticIn, child: ForestDashboard())
+          googleMap,
+          if (showPopup)
+            FadeIn(
+                duration: const Duration(milliseconds: 1000),
+                curve: Curves.elasticIn,
+                child: ForestDashboard(callback: () {
+                  setState(() {
+                    Future.delayed(Duration(milliseconds: 400), () {
+                      setState(() {
+                        currentMarker = null;
+                        showPopup = false;
+                      });
+                    },);
+                  });
+
+                },))
         ],
       ),
     );
   }
-
 }

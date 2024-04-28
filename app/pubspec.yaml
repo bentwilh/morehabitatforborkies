@@ -40,6 +40,7 @@ dependencies:
   lottie: ^3.1.0
   flutter_fadein: ^2.0.0
   blurrycontainer: ^1.0.2
+  gap: ^3.0.1
 
 dev_dependencies:
   flutter_test:

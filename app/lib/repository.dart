@@ -1,5 +1,6 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ForestChangeData {
   final DateTime captureDate;
@@ -22,29 +23,56 @@ class ForestChangeData {
   }
 }
 
+class UInterceptor extends Interceptor {
+  @override
+  void onRequest(
+      RequestOptions options,
+      RequestInterceptorHandler handler,
+      ) {
+    super.onRequest(options, handler);
+    print(options.path);
+    print(options.data);
+    print(handler.toString());
+  }
+}
+
 class ForestDataRepository {
-  static const String _endpoint = 'https://your.api/endpoint';
+  static const String _endpoint = 'http://5.75.170.84/get-image';
 
   final Dio _dio;
-  ForestDataRepository({Dio? dio}) : _dio = dio ?? Dio();
-  Future<List<ForestChangeData>> getForestChangeData(
-      LatLng coords,
-      DateTime startDate,
-      DateTime endDate,
+  ForestDataRepository({Dio? dio}) : _dio = dio ?? Dio(BaseOptions(connectTimeout: Duration(seconds: 130),sendTimeout: Duration(seconds: 130),receiveTimeout: Duration(seconds: 130)))..interceptors.add(UInterceptor());
+
+  Future<bool> callNumber() async {
+    return await _dio.get('https://morehabitatforborkies-production.up.railway.app/outboundCall').then((value) {
+      if (200 == value.statusCode) {
+        return true;
+      }
+      return false;
+    },).onError((error, stackTrace) => false);
+  }
+
+  Future<Map<String, String>> getForestChangeData(
+      ForestRequestDto request
       ) async {
     try {
+      bool error = false;
       final response = await _dio.post(
         _endpoint,
-        data: {
-          'latitude': coords.latitude,
-          'longitude': coords.longitude,
-          'startDate': startDate.toIso8601String(),
-          'endDate': endDate.toIso8601String()
-        },
-      );
+        data: request.toJson(),
+        options: Options(
+          contentType: 'application/json'
+        )
+      ).onError((e, stackTrace) {
+        error = true;
+        print(e);
+        return Response(requestOptions: RequestOptions());
+      });
+      if (error) {
+        return {};
+      }
       if (response.statusCode == 200) {
-        List<dynamic> dataList = response.data;
-        return dataList.map((dataJson) => ForestChangeData.fromJson(dataJson)).toList();
+        Map<dynamic, dynamic> dataList = response.data;
+        return dataList.map<String, String>((key, value) => MapEntry(key as String, value as String));
       } else {
         throw Exception('Failed to load forest change data');
       }
@@ -54,4 +82,44 @@ class ForestDataRepository {
       throw e;
     }
   }
+}
+
+class ForestRequestDto {
+  final double lat;
+  final double lon;
+  final int startYear;
+  final int startMonth;
+  final int endYear;
+  final int endMonth;
+
+  ForestRequestDto({
+    required this.lat,
+    required this.lon,
+    required this.startYear,
+    required this.startMonth,
+    required this.endYear,
+    required this.endMonth,
+  });
+
+  factory ForestRequestDto.fromRawJson(String str) => ForestRequestDto.fromJson(json.decode(str));
+
+  String toRawJson() => json.encode(toJson());
+
+  factory ForestRequestDto.fromJson(Map<String, dynamic> json) => ForestRequestDto(
+    lat: json["lat"]?.toDouble(),
+    lon: json["lon"]?.toDouble(),
+    startYear: json["start_year"],
+    startMonth: json["start_month"],
+    endYear: json["end_year"],
+    endMonth: json["end_month"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "lat": lat,
+    "lon": lon,
+    "start_year": startYear,
+    "start_month": startMonth,
+    "end_year": endYear,
+    "end_month": endMonth,
+  };
 }
