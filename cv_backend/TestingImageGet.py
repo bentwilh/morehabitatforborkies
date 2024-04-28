@@ -7,7 +7,7 @@ url = 'http://127.0.0.1:5000/get-image'
 # Note that 'body' here does not encapsulate the JSON in another layer unless explicitly required by your server.
 payload = {
     "lat": -7.1499167,
-    "lon": -54.7807500,
+    "lon": -56.7807500,
     "start_year": 2020,
     "start_month": 1,
     "end_year": 2020,

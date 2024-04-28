@@ -170,20 +170,21 @@ def get_image():
         evalscript = """
         //VERSION=3
         function setup() {
-        return {
-            input: ["B02", "B03", "B04", "CLP"],
-            output: {
-            bands: 4,
-            sampleType: "AUTO",
-            format: "TIFF"
-            }
-        }
+            return {
+                input: ["B02", "B03", "B04", "CLP"],  // Include the CLP band for cloud probability
+                output: {
+                    bands: 5,
+                    sampleType: "AUTO",
+                    format: "TIFF"
+                }
+            };
         }
 
         function evaluatePixel(sample) {
-        return [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02];
-        }
-        """
+            var cloudThreshold = 0.99;  // Threshold for cloud probability (20%)
+            var RGB = [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02, 0.8, sample.CLP];
+            return RGB
+        }"""
 
         oauth = get_oauth_session()
         token = get_token(oauth)
@@ -199,16 +200,12 @@ def get_image():
             image = Image.open(filename)
 
             image_array = np.asarray(image)
-            if np.mean(image_array[3])>100:
+            print(image_array)
+            if np.mean(image_array[4])>100:
                 continue            
             
             image = Image.open(filename).convert('RGBA')
             
-            predictor = ImagePredictor('./unet_rgb.weights.h5')
-            mask = predictor.predict_mask(filename)
-            #logging.info(f"Image details - Mode: {image.mode}, Size: {image.size}")
-
-            # Use the predictor to generate a mask
             predictor = ImagePredictor('./unet_rgb.weights.h5')
             mask = predictor.predict_mask(filename)
 
@@ -224,7 +221,7 @@ def get_image():
             #logging.info("Mask sample values: " + str(mask.flatten()[:10]))  # Example: log first 10 values
 
             # Analysis of mask data
-            unique_values, counts = np.unique(mask, return_counts=True)
+            #unique_values, counts = np.unique(mask, return_counts=True)
             #logging.info(f"Unique mask values: {dict(zip(unique_values, counts))}")
 
             # Resize mask to match the image size
@@ -235,8 +232,10 @@ def get_image():
             normalized_mask = np.array(mask_image) / 255.0
             gradient_mask = np.zeros((image.height, image.width, 4), dtype=np.uint8)
             gradient_mask[..., 1] = 255  # Red channel
-            gradient_mask[..., 3] = (normalized_mask * 255).astype(np.uint8) 
+            gradient_mask[..., 3] = (normalized_mask * 255 * 0.1).astype(np.uint8)
+            
             gradient_mask_image = Image.fromarray(gradient_mask, 'RGBA')
+        
 
             # Composite the images
             overlayed_image = Image.alpha_composite(image, gradient_mask_image)
