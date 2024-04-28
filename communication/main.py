@@ -168,7 +168,7 @@ def handle_callback(contextId):
 
             app.logger.info("call connected : data=%s", event.data)
             if event.type == "Microsoft.Communication.CallConnected":
-                handle_recognize("Hello! How can I assist you?", caller_id, call_connection_id,
+                handle_recognize("Hello! Thanks for calling back! Please let us know what you have found out about the incident.", caller_id, call_connection_id,
                                  context="GetFreeFormText")
 
             elif event.type == "Microsoft.Communication.RecognizeCompleted":
@@ -176,7 +176,7 @@ def handle_callback(contextId):
                     speech_text = event.data['speechResult']['speech'];
                     app.logger.info("Recognition completed, speech_text =%s", speech_text)
                     if speech_text is not None and len(speech_text) > 0:
-                        static_response = "Thank you for your input. We are processing your request."
+                        static_response = "Thank you for your input. One of our representatives will be in touch if further context or action should be required."
                         # if len(static_response) > 390:
                         #     static_response = static_response[:390]
                         handle_recognize(static_response, caller_id, call_connection_id, context="StaticResponse")
@@ -190,7 +190,7 @@ def handle_callback(contextId):
                     handle_recognize("Please repeat that.", caller_id, call_connection_id)
                     max_retry -= 1
                 else:
-                    handle_play(call_connection_id, caller_id, "Goodbye!", "EndCall")
+                    handle_play(call_connection_id, caller_id, "Have a wonderful day, goodbye!", "EndCall")
 
             elif event.type == "Microsoft.Communication.PlayCompleted":
                 context = event.data['operationContext']
