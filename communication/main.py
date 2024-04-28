@@ -1,4 +1,6 @@
 import os
+import uuid
+from urllib.parse import urlencode
 
 from azure.eventgrid import EventGridEvent, SystemEventNames
 from flask import Flask, Response, request, json, send_file, render_template, redirect
@@ -28,15 +30,9 @@ COGNITIVE_SERVICES_ENDPOINT = os.getenv("COGNITIVE_SERVICES_ENDPOINT")
 AZURE_OPENAI_SERVICE_KEY = os.getenv("AZURE_OPENAI_SERVICES_KEY")
 CALLBACK_EVENTS_URI = "https://morehabitatforborkies-production.up.railway.app/api/callbacks"
 SPEECH_TO_TEXT_VOICE = "en-US-NancyNeural"
-MAIN_MENU = "Hello, this is notification from wood watchers. We have detected potential environmental damage in your area of responsiblity. Do you want to receive a summary notification via SMS?"
-CONFIRMED_TEXT = "Thank you, a summary SMS has been sent."
-CANCEL_TEXT = "Alright, I won't send an SMS then. Thank you."
-CUSTOMER_QUERY_TIMEOUT = "I’m sorry I didn’t receive a response, please try again."
-NO_RESPONSE = "I didn't receive an input, we will go ahead and send an SMS. Goodbye"
-INVALID_AUDIO = "I’m sorry, I didn’t understand your response, please try again."
-CONFIRM_CHOICE_LABEL = "Confirm"
-CANCEL_CHOICE_LABEL = "Cancel"
-RETRY_CONTEXT = "retry"
+OUTGOING_MESSAGE = "Hello, this is notification from wood watchers." \
+            "We have detected potential environmental damage in your area of responsiblity." \
+            "We kindly ask you to call back this number to give us an update once you have investigated the situation."
 call_automation_client = CallAutomationClient.from_connection_string(ACS_CONNECTION_STRING)
 
 
@@ -46,14 +42,6 @@ def hello_world():
 
 
 app = Flask(__name__)
-
-
-def get_choices():
-    choices = [
-        RecognitionChoice(label=CONFIRM_CHOICE_LABEL, phrases=["Confirm", "First", "One", "Yes"], tone=DtmfTone.ONE),
-        RecognitionChoice(label=CANCEL_CHOICE_LABEL, phrases=["Cancel", "Second", "Two", "No"], tone=DtmfTone.TWO)
-    ]
-    return choices
 
 
 def get_media_recognize_choice_options(call_connection_client: CallConnectionClient, text_to_play: str,
@@ -97,51 +85,46 @@ def callback_events_handler():
         call_connection_id = event.data['callConnectionId']
         app.logger.info("%s event received for call connection id: %s", event.type, call_connection_id)
         call_connection_client = call_automation_client.get_call_connection(call_connection_id)
-        target_participant = PhoneNumberIdentifier(TARGET_PHONE_NUMBER)
+
         if event.type == "Microsoft.Communication.CallConnected":
             app.logger.info("Starting recognize")
-            get_media_recognize_choice_options(
-                call_connection_client=call_connection_client,
-                text_to_play=MAIN_MENU,
-                target_participant=target_participant,
-                choices=get_choices(), context="")
+            handle_play(call_connection_client=call_connection_client,
+                        text_to_play=OUTGOING_MESSAGE)
 
-        # Perform different actions based on DTMF tone received from RecognizeCompleted event
-        elif event.type == "Microsoft.Communication.RecognizeCompleted":
-            app.logger.info("Recognize completed: data=%s", event.data)
-            if event.data['recognitionType'] == "choices":
-                label_detected = event.data['choiceResult']['label'];
-                phraseDetected = event.data['choiceResult']['recognizedPhrase'];
-                app.logger.info("Recognition completed, labelDetected=%s, phraseDetected=%s, context=%s",
-                                label_detected, phraseDetected, event.data.get('operationContext'))
-                if label_detected == CONFIRM_CHOICE_LABEL:
-                    text_to_play = CONFIRMED_TEXT
-                    send_sms()
-                else:
-                    text_to_play = CANCEL_TEXT
-                handle_play(call_connection_client=call_connection_client, text_to_play=text_to_play)
-
-        elif event.type == "Microsoft.Communication.RecognizeFailed":
-            failedContext = event.data['operationContext']
-            if (failedContext and failedContext == RETRY_CONTEXT):
-                handle_play(call_connection_client=call_connection_client, text_to_play=NO_RESPONSE)
-                send_sms()
-            else:
-                resultInformation = event.data['resultInformation']
-                app.logger.info("Encountered error during recognize, message=%s, code=%s, subCode=%s",
-                                resultInformation['message'],
-                                resultInformation['code'],
-                                resultInformation['subCode'])
-                if (resultInformation['subCode'] in [8510, 8510]):
-                    textToPlay = CUSTOMER_QUERY_TIMEOUT
-                else:
-                    textToPlay = INVALID_AUDIO
-
-                get_media_recognize_choice_options(
-                    call_connection_client=call_connection_client,
-                    text_to_play=textToPlay,
-                    target_participant=target_participant,
-                    choices=get_choices(), context=RETRY_CONTEXT)
+        # # Perform different actions based on DTMF tone received from RecognizeCompleted event
+        # elif event.type == "Microsoft.Communication.RecognizeCompleted":
+        #     app.logger.info("Recognize completed: data=%s", event.data)
+        #     if event.data['recognitionType'] == "choices":
+        #         label_detected = event.data['choiceResult']['label'];
+        #         phraseDetected = event.data['choiceResult']['recognizedPhrase'];
+        #         app.logger.info("Recognition completed, labelDetected=%s, phraseDetected=%s, context=%s",
+        #                         label_detected, phraseDetected, event.data.get('operationContext'))
+        #         if label_detected == CONFIRM_CHOICE_LABEL:
+        #             text_to_play = CONFIRMED_TEXT
+        #         else:
+        #             text_to_play = CANCEL_TEXT
+        #         handle_play(call_connection_client=call_connection_client, text_to_play=text_to_play)
+        #
+        # elif event.type == "Microsoft.Communication.RecognizeFailed":
+        #     failedContext = event.data['operationContext']
+        #     if (failedContext and failedContext == RETRY_CONTEXT):
+        #         handle_play(call_connection_client=call_connection_client, text_to_play=NO_RESPONSE)
+        #     else:
+        #         resultInformation = event.data['resultInformation']
+        #         app.logger.info("Encountered error during recognize, message=%s, code=%s, subCode=%s",
+        #                         resultInformation['message'],
+        #                         resultInformation['code'],
+        #                         resultInformation['subCode'])
+        #         if (resultInformation['subCode'] in [8510, 8510]):
+        #             textToPlay = CUSTOMER_QUERY_TIMEOUT
+        #         else:
+        #             textToPlay = INVALID_AUDIO
+        #
+        #         get_media_recognize_choice_options(
+        #             call_connection_client=call_connection_client,
+        #             text_to_play=textToPlay,
+        #             target_participant=target_participant,
+        #             choices=get_choices(), context=RETRY_CONTEXT)
 
         elif event.type in ["Microsoft.Communication.PlayCompleted", "Microsoft.Communication.PlayFailed"]:
             app.logger.info("Terminating call")
@@ -152,18 +135,36 @@ def callback_events_handler():
 
 @app.route("/api/incomingCall", methods=['POST'])
 def incoming_call_handler():
-    # TODO
-    print("Received call")
-    return Response(status=200)
+    for event_dict in request.json:
+        event = EventGridEvent.from_dict(event_dict)
+        app.logger.info("incoming event data --> %s", event.data)
+        if event.event_type == SystemEventNames.EventGridSubscriptionValidationEventName:
+            app.logger.info("Validating subscription")
+            validation_code = event.data['validationCode']
+            validation_response = {'validationResponse': validation_code}
+            return Response(response=json.dumps(validation_response), status=200)
+        elif event.event_type == "Microsoft.Communication.IncomingCall":
+            app.logger.info("Incoming call received: data=%s",
+                            event.data)
+            if event.data['from']['kind'] == "phoneNumber":
+                caller_id = event.data['from']["phoneNumber"]["value"]
+            else:
+                caller_id = event.data['from']['rawId']
+            app.logger.info("incoming call handler caller id: %s",
+                            caller_id)
+            incoming_call_context = event.data['incomingCallContext']
+            guid = uuid.uuid4()
+            query_parameters = urlencode({"callerId": caller_id})
+            callback_uri = f"{CALLBACK_EVENTS_URI}/{guid}?{query_parameters}"
 
+            app.logger.info("callback url: %s", callback_uri)
 
-def send_sms():
-    print("sending SMS")
-    sms_client = SmsClient.from_connection_string(ACS_CONNECTION_STRING)
-    sms_responses = sms_client.send(
-        from_=ACS_PHONE_NUMBER,
-        to=[TARGET_PHONE_NUMBER],
-        message="Map Details will go here")
+            answer_call_result = call_automation_client.answer_call(incoming_call_context=incoming_call_context,
+                                                                    cognitive_services_endpoint=COGNITIVE_SERVICES_ENDPOINT,
+                                                                    callback_url=callback_uri)
+            app.logger.info("Answered call for connection id: %s",
+                            answer_call_result.call_connection_id)
+            return Response(status=200)
 
 
 if __name__ == '__main__':
