@@ -14,6 +14,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import base64
 import logging
+from flask_cors import CORS
 
 # Configure logging
 #logging.basicConfig(filename='image_analysis.log', level=logging.INFO, 
@@ -24,6 +25,7 @@ import logging
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 def get_oauth_session():
     client = BackendApplicationClient(client_id=os.environ.get("CLIENT_ID"))

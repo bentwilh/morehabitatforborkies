@@ -31,9 +31,9 @@ COGNITIVE_SERVICES_ENDPOINT = os.getenv("COGNITIVE_SERVICES_ENDPOINT")
 AZURE_OPENAI_SERVICE_KEY = os.getenv("AZURE_OPENAI_SERVICES_KEY")
 CALLBACK_EVENTS_URI = "https://morehabitatforborkies-production.up.railway.app/api/callbacks"
 SPEECH_TO_TEXT_VOICE = "en-US-NancyNeural"
-OUTGOING_MESSAGE = "Hello, this is a notification from wood watchers." \
+OUTGOING_MESSAGE = "Hello! This is a notification from Wood Watcher." \
                    "We have detected potential environmental damage in your area of responsiblity." \
-                   "We kindly ask you to call back this number to give us an update once you have investigated the situation. Thank you."
+                   "We kindly ask you to call back this number to give us an update once you have investigated the situation. Thank you!"
 call_automation_client = CallAutomationClient.from_connection_string(ACS_CONNECTION_STRING)
 AZURE_OPENAI_DEPLOYMENT_MODEL = "gpt-3.5-turbo"
 openai.api_key = AZURE_OPENAI_SERVICE_KEY
